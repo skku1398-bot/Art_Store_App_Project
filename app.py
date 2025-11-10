@@ -133,7 +133,7 @@ if user_input_location:
         user_location_coords = None
 
 # 5. 메인 페이지 UI
-st.title("🗺️ 서울/경기 지역 예술용품점 찾기 앱")
+st.title("서울/경기 지역 예술용품점 찾기 앱")
 st.markdown("---")
 
 # 5-1. 지도 출력
@@ -212,3 +212,4 @@ if not filtered_df.empty:
 
 else:
     st.info("검색된 화방이 없습니다.")
+
