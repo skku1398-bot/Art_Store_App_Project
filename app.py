@@ -6,7 +6,7 @@ import numpy as np
 from geopy.distance import geodesic
 
 # =================================================================================
-# ⭐️ 모바일 화면 최적화 (Wide Mode) 설정
+# 모바일 화면 최적화 (Wide Mode) 설정
 st.set_page_config(layout="wide")
 # =================================================================================
 
@@ -53,7 +53,7 @@ def create_map(filtered_df, user_location=None):
 
     return m
 
-# 3. 사이드바 UI 설정 (⭐이전 코드에서는 필터가 모두 여기에 있었습니다)
+# 3. 사이드바 UI 설정 (필터가 모두 여기에 있습니다)
 st.sidebar.title("화방 찾기 필터")
 st.sidebar.markdown("---")
 
@@ -187,7 +187,7 @@ if not filtered_df.empty:
     if selected_store_name:
         store_data = filtered_df[filtered_df['name'] == selected_store_name].iloc[0]
 
-        st.subheader(f"✨ {store_data['name']} 상세 정보")
+        st.subheader(f"{store_data['name']} 상세 정보")
         
         # 상세 정보를 깔끔하게 보여주기 위해 2개의 컬럼 사용
         detail_col1, detail_col2 = st.columns(2)
@@ -199,7 +199,7 @@ if not filtered_df.empty:
             st.markdown(f"**영업시간:** {store_data['opening_hours']}")
 
         with detail_col2:
-            st.markdown(f"**평점:** ⭐ {store_data['review_score']}")
+            st.markdown(f"**평점:** {store_data['review_score']}")
             st.markdown(f"**카테고리:** {store_data['category']}")
             
             # 재료 목록을 리스트로 표시
@@ -212,4 +212,3 @@ if not filtered_df.empty:
 
 else:
     st.info("검색된 화방이 없습니다.")
-
