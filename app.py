@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import folium
 from streamlit_folium import folium_static
-
+st.set_page_config(layout="wide")
 # --- 데이터 로드 ---
 try:
     # final_ranked_art_stores.csv 파일에 모든 데이터가 들어있습니다.
@@ -150,3 +150,4 @@ if DATA_LOADED:
 
 
         folium_static(m, width=700, height=450)
+
