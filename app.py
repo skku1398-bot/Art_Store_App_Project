@@ -53,39 +53,30 @@ def create_map(filtered_df, user_location=None):
 
     return m
 
-# =================================================================================
-# 5. 메인 페이지 UI 및 필터 설정 (사이드바 사용 안 함)
-# =================================================================================
-st.title("🗺️ 서울/경기 지역 예술용품점 찾기 앱")
-st.markdown("---")
+# 3. 사이드바 UI 설정 (⭐이전 코드에서는 필터가 모두 여기에 있었습니다)
+st.sidebar.title("화방 찾기 필터")
+st.sidebar.markdown("---")
 
-# 3. 필터 UI 설정 (모바일 최적화를 위해 메인 바디에 배치)
-st.header("🔍 화방 검색 필터")
+# 3-1. 사용자 위치 입력
+st.sidebar.header("1. 내 위치 설정")
+user_input_location = st.sidebar.text_input("현재 위치 (주소 입력)", value="")
 
-# 컬럼을 사용하여 가로로 배치 (PC에서는 보기 좋고, 모바일에서는 자동으로 세로로 쌓여서 길게 보입니다)
-col1, col2, col3 = st.columns(3)
+# 3-2. 거리 필터
+distance_limit = st.sidebar.slider("거리 제한 (Km)", min_value=1.0, max_value=50.0, value=15.0, step=1.0)
 
-with col1:
-    st.subheader("📍 1. 내 위치 설정")
-    user_input_location = st.text_input("현재 위치 (주소 입력)", value="", label_visibility="collapsed")
-    
-    distance_limit = st.slider("거리 제한 (Km)", min_value=1.0, max_value=50.0, value=15.0, step=1.0)
+# 3-3. 카테고리 필터
+st.sidebar.header("2. 카테고리 필터")
+categories = ['전체'] + df['category'].unique().tolist()
+selected_category = st.sidebar.selectbox("카테고리 선택", categories)
 
-with col2:
-    st.subheader("🏷️ 2. 카테고리 필터")
-    categories = ['전체'] + df['category'].unique().tolist()
-    selected_category = st.selectbox("카테고리 선택", categories, label_visibility="collapsed")
-
-with col3:
-    st.subheader("🖌️ 3. 재료 필터")
-    # materials 컬럼의 모든 재료를 유니크하게 추출
-    all_materials = set()
-    for materials in df['materials'].dropna():
-        all_materials.update(materials.split(';'))
-    all_materials = sorted(list(all_materials))
-    selected_materials = st.multiselect("취급 재료로 필터링하기", all_materials, label_visibility="collapsed")
-
-st.markdown("---")
+# 3-4. 재료 필터
+st.sidebar.header("3. 재료 필터")
+# materials 컬럼의 모든 재료를 유니크하게 추출
+all_materials = set()
+for materials in df['materials'].dropna():
+    all_materials.update(materials.split(';'))
+all_materials = sorted(list(all_materials))
+selected_materials = st.sidebar.multiselect("취급 재료로 필터링하기", all_materials)
 
 # 4. 데이터 필터링 및 거리 계산 로직
 filtered_df = df.copy()
@@ -138,9 +129,12 @@ if user_input_location:
 
     except Exception as e:
         # 실제 API 호출 시 발생하는 오류 처리
-        st.warning("위치 정보를 정확히 파악할 수 없습니다. 지도 표시가 부정확할 수 있습니다.")
+        st.sidebar.warning("위치 정보를 정확히 파악할 수 없습니다. 지도 표시가 부정확할 수 있습니다.")
         user_location_coords = None
 
+# 5. 메인 페이지 UI
+st.title("🗺️ 서울/경기 지역 예술용품점 찾기 앱")
+st.markdown("---")
 
 # 5-1. 지도 출력
 st.header("1. 화방 위치 지도")
@@ -155,7 +149,6 @@ with map_col:
         folium_static(m, width=700, height=450)
     else:
         st.warning("선택된 조건에 맞는 화방이 없습니다. 필터를 조정해 주세요.")
-
 
 # 5-2. 순위표 출력
 st.header("2. 검색 결과 순위표")
