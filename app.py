@@ -79,6 +79,7 @@ all_materials = sorted(list(all_materials))
 selected_materials = st.sidebar.multiselect("취급 재료로 필터링하기", all_materials)
 
 # 4. 데이터 필터링 및 거리 계산 로직
+user_location_coords = None
 filtered_df = df.copy()
 
 # 4-1. 카테고리 필터 적용
@@ -97,16 +98,18 @@ if selected_materials:
     filtered_df = filtered_df[filtered_df['materials'].apply(filter_by_materials)]
 
 # 4-3. 거리 계산 및 필터
-user_location_coords = None
 if user_input_location:
     try:
-        # Tmap API 호출 대신, '강남역' 또는 '홍대입구역' 등의 간단한 좌표만 가정 (배포 편의상)
+        # 혜화역을 포함하여 위치 인식 로직 수정
         if '강남역' in user_input_location:
             user_lat, user_lon = 37.4979, 127.0276
         elif '홍대입구역' in user_input_location:
             user_lat, user_lon = 37.5574, 126.9248
+        elif '혜화역' in user_input_location:
+            # 사용자님 파일에서 확인된 혜화역 좌표 적용
+            user_lat, user_lon = 37.582236, 127.001967
         else:
-            # 주소 변환이 복잡하므로, 일단 예외 처리
+            # 위 3개 키워드 외에는 위치 인식 건너뜀
             user_lat, user_lon = None, None 
 
         if user_lat and user_lon:
