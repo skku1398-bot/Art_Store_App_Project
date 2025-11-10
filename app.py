@@ -1,153 +1,221 @@
 import streamlit as st
 import pandas as pd
-import folium
 from streamlit_folium import folium_static
+import folium
+import numpy as np
+from geopy.distance import geodesic
+
+# =================================================================================
+# ⭐️ 모바일 화면 최적화 (Wide Mode) 설정
 st.set_page_config(layout="wide")
-# --- 데이터 로드 ---
+# =================================================================================
+
+# 1. 데이터 로드
 try:
-    # final_ranked_art_stores.csv 파일에 모든 데이터가 들어있습니다.
-    df = pd.read_csv('final_ranked_art_stores.csv')
-    START_LAT = 37.582236  # 혜화역 좌표
-    START_LON = 127.001967
-    DATA_LOADED = True
+    df = pd.read_csv("final_ranked_art_stores.csv")
 except FileNotFoundError:
-    st.error("오류: 'final_ranked_art_stores.csv' 파일을 찾을 수 없습니다. 거리 계산 단계를 완료해주세요.")
-    DATA_LOADED = False
+    st.error("데이터 파일을 찾을 수 없습니다. 'final_ranked_art_stores.csv' 파일이 필요합니다.")
+    st.stop()
 
-# --- 웹페이지 UI 구성 ---
-if DATA_LOADED:
-    st.set_page_config(layout="wide")
-    st.title("최적의 미술재료 화방 찾기 (혜화역 기준)")
-    st.markdown("---")
+# 2. 지도 초기화 및 마커 함수
+def create_map(filtered_df, user_location=None):
+    # 서울 중심 좌표
+    SEOUL_CENTER = [37.5665, 126.9780]
+    m = folium.Map(location=SEOUL_CENTER, zoom_start=11)
 
-    col1, col2 = st.columns([1, 2.5]) 
-    
-    with col1:
-        st.header("화방 찾기")
-        
-        # 1. 재료 및 화방 필터링 준비
-        
-        df_all = df.copy()
-        df_filtered = df_all.copy()
-        
-        # 1-2. 전체 재료 목록 생성 (중복 제거)
-        all_materials = set()
-        for materials_str in df_all['materials'].dropna():
-            if isinstance(materials_str, str):
-                for material in materials_str.split(';'):
-                    all_materials.add(material.strip())
-        all_materials = sorted(list(all_materials))
-
-        # 2. UI 필터링 요소
-        # 다중 선택 필터
-        selected_materials = st.multiselect("재료로 필터링하기 (다중 선택 가능)", all_materials)
-        
-        # 3. 필터링 적용
-        # 카테고리 필터링 (기존 기능 유지)
-        category_col = 'category'
-        category_list = ['전체 카테고리'] + sorted(df_all[category_col].unique().tolist())
-        selected_category = st.selectbox("유형으로 필터링하기", category_list)
-
-        if selected_category != '전체 카테고리':
-            df_filtered = df_filtered[df_filtered[category_col] == selected_category]
-            
-        # 재료 필터링 적용 (Multiselect OR 로직)
-        if selected_materials:
-            material_pattern = '|'.join(selected_materials)
-            df_filtered = df_filtered[df_filtered['materials'].astype(str).str.contains(material_pattern, case=False, na=False)]
-
-        
-        # 4. 순위표 표시
-        st.dataframe(
-            df_filtered[['name', 'distance_km', 'category', 'review_score']],
-            column_config={
-                'name': '화방 이름',
-                'distance_km': st.column_config.NumberColumn("거리 (Km)", format="%.2f Km"),
-                'category': '유형',
-                'review_score': st.column_config.NumberColumn("평점", format="%.1f / 5.0"),
-            },
-            hide_index=True,
-            use_container_width=True
-        )
-
-        st.markdown("---")
-        st.subheader("상세 정보")
-        
-        # 상세 정보 표시 (df_filtered가 비어있지 않을 때만)
-        if not df_filtered.empty:
-            selected_store_name = st.selectbox(
-                "상세 정보를 볼 화방을 선택하세요:",
-                df_filtered['name'].tolist()
-            )
-        
-            selected_store = df_filtered[df_filtered['name'] == selected_store_name].iloc[0]
-            
-            if not selected_store.empty:
-                st.markdown(f"#### {selected_store_name}")
-                
-                # 주소 표시
-                st.write(f"**주소:** {selected_store['address']}")
-                
-                # 전화번호 표시
-                if selected_store['phone'] and selected_store['phone'] != '':
-                    st.write(f"**전화번호:** {selected_store['phone']}")
-                
-                # 영업시간 표시
-                if selected_store['opening_hours'] and selected_store['opening_hours'] != '':
-                    st.write(f"**영업시간:** {selected_store['opening_hours']}")
-                
-                # 지하철역 표시
-                if selected_store['nearest_station'] and selected_store['nearest_station'] != '':
-                    st.write(f"**가까운 역:** {selected_store['nearest_station']}")
-
-                # 리뷰 평점 표시
-                if selected_store['review_score'] and selected_store['review_score'] != '':
-                    st.write(f"**리뷰 평점:** {float(selected_store['review_score']):.1f} / 5.0")
-                
-                # materials의 NaN (float) 값 처리
-                materials_value = selected_store['materials']
-                if pd.isna(materials_value) or materials_value == '':
-                    materials_display = "정보 없음"
-                else:
-                    materials_display = str(materials_value).replace(';', ', ')
-                    
-                st.write(f"취급 재료: **{materials_display}**")
-                st.write(f"거리: **{selected_store['distance_km']:.2f} Km**")
-
-
-    with col2:
-        st.header("지도에서 위치 확인")
-        
-        # 지도의 중심은 전체 데이터(df)의 평균 좌표를 사용
-        map_center_lat = (START_LAT + df['lat'].mean())/2
-        map_center_lon = (START_LON + df['lon'].mean())/2
-        m = folium.Map(location=[map_center_lat, map_center_lon], zoom_start=12)
-        
-        # 출발지(혜화역 근처) 마커는 항상 표시
+    # 사용자 위치 마커 추가
+    if user_location:
         folium.Marker(
-            [START_LAT, START_LON],
-            tooltip="출발지: 혜화역 근처",
-            icon=folium.Icon(color='blue', icon='home', prefix='fa')
+            user_location,
+            tooltip="현재 위치",
+            icon=folium.Icon(color="red", icon="home")
         ).add_to(m)
 
-        # 🚨 [핵심 수정] 필터링된 데이터프레임(df_filtered)만 사용하여 마커를 그립니다.
-        for index, row in df_filtered.iterrows():
-            is_key = row.get('is_key_store', False) == True
+    # 화방 마커 추가
+    for idx, row in filtered_df.iterrows():
+        # HTML 팝업 내용 생성
+        html = f"""
+        <b>{row['name']}</b><br>
+        평점: {row['review_score']}<br>
+        카테고리: {row['category']}<br>
+        {row['address']}<br>
+        """
+        
+        # is_key_store 여부에 따라 마커 색상 결정
+        color = 'blue' if row['is_key_store'] == True else 'darkgreen'
+
+        folium.Marker(
+            [row['lat'], row['lon']],
+            tooltip=row['name'],
+            popup=folium.Popup(html, max_width=200),
+            icon=folium.Icon(color=color)
+        ).add_to(m)
+
+    return m
+
+# =================================================================================
+# 5. 메인 페이지 UI 및 필터 설정 (사이드바 사용 안 함)
+# =================================================================================
+st.title("🗺️ 서울/경기 지역 예술용품점 찾기 앱")
+st.markdown("---")
+
+# 3. 필터 UI 설정 (모바일 최적화를 위해 메인 바디에 배치)
+st.header("🔍 화방 검색 필터")
+
+# 컬럼을 사용하여 가로로 배치 (PC에서는 보기 좋고, 모바일에서는 자동으로 세로로 쌓여서 길게 보입니다)
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.subheader("📍 1. 내 위치 설정")
+    user_input_location = st.text_input("현재 위치 (주소 입력)", value="", label_visibility="collapsed")
+    
+    distance_limit = st.slider("거리 제한 (Km)", min_value=1.0, max_value=50.0, value=15.0, step=1.0)
+
+with col2:
+    st.subheader("🏷️ 2. 카테고리 필터")
+    categories = ['전체'] + df['category'].unique().tolist()
+    selected_category = st.selectbox("카테고리 선택", categories, label_visibility="collapsed")
+
+with col3:
+    st.subheader("🖌️ 3. 재료 필터")
+    # materials 컬럼의 모든 재료를 유니크하게 추출
+    all_materials = set()
+    for materials in df['materials'].dropna():
+        all_materials.update(materials.split(';'))
+    all_materials = sorted(list(all_materials))
+    selected_materials = st.multiselect("취급 재료로 필터링하기", all_materials, label_visibility="collapsed")
+
+st.markdown("---")
+
+# 4. 데이터 필터링 및 거리 계산 로직
+filtered_df = df.copy()
+
+# 4-1. 카테고리 필터 적용
+if selected_category != '전체':
+    filtered_df = filtered_df[filtered_df['category'] == selected_category]
+
+# 4-2. 재료 필터 적용
+if selected_materials:
+    # 선택된 모든 재료를 포함하는 행만 필터링
+    def filter_by_materials(materials_str):
+        if pd.isna(materials_str):
+            return False
+        store_materials = set(materials_str.split(';'))
+        return all(material in store_materials for material in selected_materials)
+    
+    filtered_df = filtered_df[filtered_df['materials'].apply(filter_by_materials)]
+
+# 4-3. 거리 계산 및 필터
+user_location_coords = None
+if user_input_location:
+    try:
+        # Tmap API 호출 대신, '강남역' 또는 '홍대입구역' 등의 간단한 좌표만 가정 (배포 편의상)
+        if '강남역' in user_input_location:
+            user_lat, user_lon = 37.4979, 127.0276
+        elif '홍대입구역' in user_input_location:
+            user_lat, user_lon = 37.5574, 126.9248
+        else:
+            # 주소 변환이 복잡하므로, 일단 예외 처리
+            user_lat, user_lon = None, None 
+
+        if user_lat and user_lon:
+            user_location_coords = (user_lat, user_lon)
             
-            popup_text = f"<b>{row['name']}</b><br>거리: {row['distance_km']:.2f} Km<br>유형: {row['category']}"
+            # 거리 계산 로직
+            distances = []
+            for _, row in filtered_df.iterrows():
+                store_coords = (row['lat'], row['lon'])
+                distance = geodesic(user_location_coords, store_coords).km
+                distances.append(distance)
             
-            # 마커 색상 구분 로직은 그대로 유지
-            if is_key:
-                color = 'green' if row['distance_km'] < 3 else ('orange' if row['distance_km'] < 6 else 'red')
-            else:
-                color = 'gray'
+            filtered_df['distance_km'] = distances
             
-            folium.Marker(
-                [row['lat'], row['lon']],
-                tooltip=popup_text,
-                icon=folium.Icon(color=color, icon='palette', prefix='fa')
-            ).add_to(m)
+            # 거리 제한 필터 적용
+            filtered_df = filtered_df[filtered_df['distance_km'] <= distance_limit]
+            
+            # 거리 순으로 정렬
+            filtered_df = filtered_df.sort_values(by='distance_km', ascending=True)
+
+    except Exception as e:
+        # 실제 API 호출 시 발생하는 오류 처리
+        st.warning("위치 정보를 정확히 파악할 수 없습니다. 지도 표시가 부정확할 수 있습니다.")
+        user_location_coords = None
 
 
+# 5-1. 지도 출력
+st.header("1. 화방 위치 지도")
+
+# 지도 공간 확보를 위해 st.columns 사용
+map_col, info_col = st.columns([3, 1])
+
+with map_col:
+    if not filtered_df.empty:
+        # 필터링된 데이터와 사용자 위치로 지도 생성
+        m = create_map(filtered_df, user_location_coords)
         folium_static(m, width=700, height=450)
+    else:
+        st.warning("선택된 조건에 맞는 화방이 없습니다. 필터를 조정해 주세요.")
 
+
+# 5-2. 순위표 출력
+st.header("2. 검색 결과 순위표")
+
+# 표시할 컬럼 정의
+display_cols = ['name', 'category', 'review_score', 'nearest_station']
+if 'distance_km' in filtered_df.columns:
+    display_cols.append('distance_km')
+    # 거리 소수점 처리
+    filtered_df['distance_km'] = filtered_df['distance_km'].round(1)
+
+# 컬럼명 한글화
+column_mapping = {
+    'name': '화방 이름',
+    'category': '카테고리',
+    'review_score': '평점',
+    'nearest_station': '가까운 역',
+    'distance_km': '거리 (km)'
+}
+
+# 인덱스 제거 및 순위표 출력
+st.dataframe(
+    filtered_df[display_cols].rename(columns=column_mapping).reset_index(drop=True),
+    hide_index=True
+)
+
+st.markdown("---")
+
+# 5-3. 상세 정보 출력
+st.header("3. 상세 정보")
+
+if not filtered_df.empty:
+    store_names = filtered_df['name'].tolist()
+    selected_store_name = st.selectbox("상세 정보를 볼 화방을 선택하세요:", store_names)
+
+    if selected_store_name:
+        store_data = filtered_df[filtered_df['name'] == selected_store_name].iloc[0]
+
+        st.subheader(f"✨ {store_data['name']} 상세 정보")
+        
+        # 상세 정보를 깔끔하게 보여주기 위해 2개의 컬럼 사용
+        detail_col1, detail_col2 = st.columns(2)
+
+        with detail_col1:
+            st.markdown(f"**주소:** {store_data['address']}")
+            st.markdown(f"**전화번호:** {store_data['phone']}")
+            st.markdown(f"**가까운 역:** {store_data['nearest_station']}")
+            st.markdown(f"**영업시간:** {store_data['opening_hours']}")
+
+        with detail_col2:
+            st.markdown(f"**평점:** ⭐ {store_data['review_score']}")
+            st.markdown(f"**카테고리:** {store_data['category']}")
+            
+            # 재료 목록을 리스트로 표시
+            if pd.notna(store_data['materials']):
+                materials_list = store_data['materials'].split(';')
+                st.markdown("**취급 재료:**")
+                st.markdown("- " + "\n- ".join(materials_list))
+            else:
+                st.markdown("**취급 재료:** 정보 없음")
+
+else:
+    st.info("검색된 화방이 없습니다.")
