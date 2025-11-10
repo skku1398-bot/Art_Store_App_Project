@@ -23,7 +23,7 @@ if DATA_LOADED:
     col1, col2 = st.columns([1, 2.5]) 
     
     with col1:
-        st.header("🔍 화방 순위")
+        st.header("화방 찾기")
         
         # 1. 재료 및 화방 필터링 준비
         
@@ -71,7 +71,7 @@ if DATA_LOADED:
         )
 
         st.markdown("---")
-        st.subheader("💡 상세 정보")
+        st.subheader("상세 정보")
         
         # 상세 정보 표시 (df_filtered가 비어있지 않을 때만)
         if not df_filtered.empty:
@@ -116,7 +116,7 @@ if DATA_LOADED:
 
 
     with col2:
-        st.header("🗺️ 지도에서 위치 확인")
+        st.header("지도에서 위치 확인")
         
         # 지도의 중심은 전체 데이터(df)의 평균 좌표를 사용
         map_center_lat = (START_LAT + df['lat'].mean())/2
@@ -147,5 +147,6 @@ if DATA_LOADED:
                 tooltip=popup_text,
                 icon=folium.Icon(color=color, icon='palette', prefix='fa')
             ).add_to(m)
+
 
         folium_static(m, width=700, height=450)
