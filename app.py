@@ -100,16 +100,21 @@ if selected_materials:
 # 4-3. 거리 계산 및 필터
 if user_input_location:
     try:
-        # 혜화역을 포함하여 위치 인식 로직 수정
+        # 총 6개 주요 역의 좌표를 하드코딩 (시연용)
         if '강남역' in user_input_location:
             user_lat, user_lon = 37.4979, 127.0276
         elif '홍대입구역' in user_input_location:
             user_lat, user_lon = 37.5574, 126.9248
         elif '혜화역' in user_input_location:
-            # 사용자님 파일에서 확인된 혜화역 좌표 적용
             user_lat, user_lon = 37.582236, 127.001967
+        elif '서울역' in user_input_location:
+            user_lat, user_lon = 37.55467884, 126.9706069
+        elif '사당역' in user_input_location:
+            user_lat, user_lon = 37.47659, 126.98162
+        elif '잠실역' in user_input_location:
+            user_lat, user_lon = 37.51336, 127.10026
         else:
-            # 위 3개 키워드 외에는 위치 인식 건너뜀
+            # 위 6개 키워드 외에는 위치 인식 건너뜀
             user_lat, user_lon = None, None 
 
         if user_lat and user_lon:
